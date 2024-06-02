@@ -11,8 +11,6 @@ import ru.gpbtech.wallet.model.GetWalletBalanceRequest;
 import ru.gpbtech.wallet.model.GetWalletBalanceResponse;
 import ru.gpbtech.wallet.service.WalletBalanceService;
 
-import java.util.Optional;
-
 /**
  * Контроллер для управления операциями с балансом кошелька.
  */
@@ -21,18 +19,29 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @RequestMapping("/wallet")
 public class WalletBalanceController {
-
+    
     private final WalletBalanceService walletBalanceService;
-
+    
     /**
      * Получает баланс кошелька на основе предоставленных параметров.
      *
      * @param request Запрос на получение баланса кошелька.
+     *
      * @return Ответ с балансом кошелька и дополнительной информацией.
      */
     @PostMapping("/balance")
     public ResponseEntity<GetWalletBalanceResponse> getWalletBalance(@RequestBody GetWalletBalanceRequest request) {
         log.info("Запрос на получение информации по балансу для клиента {}", request.getClientId());
-        return walletBalanceService.getWalletBalance(request);
+        
+        try {
+            GetWalletBalanceResponse walletBalance = walletBalanceService.getWalletBalance(request);
+            
+            log.trace("Результат работы сервиса {}", walletBalance);
+            
+            return ResponseEntity.ok(walletBalance);
+        } catch (Exception exception) {
+            log.error("При получении данных о балансе произошла ошибка ", exception);
+            return ResponseEntity.badRequest().build();
+        }
     }
 }

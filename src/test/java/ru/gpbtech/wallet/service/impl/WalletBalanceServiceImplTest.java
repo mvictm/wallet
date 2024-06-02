@@ -5,8 +5,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import ru.gpbtech.wallet.model.GetWalletBalanceRequest;
 import ru.gpbtech.wallet.model.GetWalletBalanceResponse;
 import ru.gpbtech.wallet.persistence.entity.WalletBalance;
@@ -15,10 +13,12 @@ import ru.gpbtech.wallet.persistence.repository.WalletBalanceRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -49,10 +49,12 @@ class WalletBalanceServiceImplTest {
         when(walletBalanceRepository.findBalance(any(), any(), any()))
                 .thenReturn(Optional.of(walletBalance));
         
-        ResponseEntity<GetWalletBalanceResponse> balance = walletBalanceService.getWalletBalance(request);
+        GetWalletBalanceResponse balance = walletBalanceService.getWalletBalance(request);
         
-        assertThat(balance.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(balance.getBody()).isNotNull();
+        assertThat(balance)
+                .isNotNull()
+                .hasFieldOrPropertyWithValue("balance", BigDecimal.valueOf(100.00))
+                .hasFieldOrPropertyWithValue("currency", "RUB");
     }
     
     @Test
@@ -65,20 +67,18 @@ class WalletBalanceServiceImplTest {
         when(walletBalanceRepository.findBalance(any(), any(), any()))
                 .thenReturn(Optional.empty());
         
-        ResponseEntity<GetWalletBalanceResponse> balance = walletBalanceService.getWalletBalance(request);
-        
-        assertThat(balance.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(balance.getBody()).isNull();
+        assertThatThrownBy(() -> walletBalanceService.getWalletBalance(request))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("В результате работы сервиса был получен пустой ответ");
     }
     
     @Test
     void testGetWalletBalanceErrorByCreation() {
         GetWalletBalanceRequest request = new GetWalletBalanceRequest();
         
-        ResponseEntity<GetWalletBalanceResponse> balance = walletBalanceService.getWalletBalance(request);
-        
-        assertThat(balance.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(balance.getBody()).isNull();
+        assertThatThrownBy(() -> walletBalanceService.getWalletBalance(request))
+                .isInstanceOf(NoSuchElementException.class)
+                .hasMessage("В запросе не найден валидный clientId");
         
         verify(walletBalanceRepository, never()).findBalance(any(), any(), any());
     }

@@ -27,7 +27,7 @@ class WalletApplicationTests {
     
     @Test
     @Sql("/test.sql")
-    void testGetWalletBalance() throws Exception {
+    void testGetWalletBalanceSuccess() throws Exception {
         String jsonContent = "{\"clientId\":\"550e8400-e29b-41d4-a716-446655440000\",\"dateFrom\":\"2024-06-01T12:00:00Z\",\"dateTo\":\"2024-06-01T13:00:00Z\"}";
         
         mockMvc.perform(post("/wallet/balance")
@@ -38,5 +38,15 @@ class WalletApplicationTests {
                 .andExpect(jsonPath("$.balance").value(100.00))
                 .andExpect(jsonPath("$.currency").value("RUB"))
                 .andExpect(jsonPath("$.lastUpdated").value("2024-06-01T13:00:00+03:00"));
+    }
+    
+    @Test
+    void testGetWalletBalanceError() throws Exception {
+        String jsonContent = "{\"dateFrom\":\"2024-06-01T12:00:00Z\",\"dateTo\":\"2024-06-01T13:00:00Z\"}";
+        
+        mockMvc.perform(post("/wallet/balance")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonContent))
+                .andExpect(status().isBadRequest());
     }
 }

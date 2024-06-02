@@ -6,6 +6,7 @@ import lombok.extern.log4j.Log4j2;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -18,8 +19,19 @@ public class VerifiedWalletBalance {
     
     private static final ZoneId MOSCOW_ZONE = ZoneId.of("Europe/Moscow");
     
+    /**
+     * Идентификатор клиента
+     */
     private final String clientId;
+    
+    /**
+     * Начальная дата для расчета баланса
+     */
     private final LocalDateTime dateFrom;
+    
+    /**
+     * Конечная дата для расчета баланса
+     */
     private final LocalDateTime dateTo;
     
     private VerifiedWalletBalance(String clientId, LocalDateTime dateFrom, LocalDateTime dateTo) {
@@ -37,26 +49,28 @@ public class VerifiedWalletBalance {
      *
      * @throws IllegalArgumentException если в запросе не передан корректный clientId.
      */
-    public static Optional<VerifiedWalletBalance> create(GetWalletBalanceRequest request) {
+    public static VerifiedWalletBalance create(GetWalletBalanceRequest request) {
         Optional<GetWalletBalanceRequest> balanceRequest = Optional.ofNullable(request);
+        
+        String clientId = balanceRequest
+                .map(GetWalletBalanceRequest::getClientId)
+                .map(UUID::toString)
+                .orElseThrow(() -> new NoSuchElementException("В запросе не найден валидный clientId"));
         
         LocalDateTime dateFrom = balanceRequest
                 .map(GetWalletBalanceRequest::getDateFrom)
                 .map(OffsetDateTime::toLocalDateTime)
-                .orElseGet(() -> LocalDateTime.now(MOSCOW_ZONE));
+                .orElseThrow(() -> new NoSuchElementException("В запросе не найден валидный dateFrom"));
         
         LocalDateTime dateTo = balanceRequest
                 .map(GetWalletBalanceRequest::getDateTo)
                 .map(OffsetDateTime::toLocalDateTime)
-                .orElseGet(() -> LocalDateTime.now(MOSCOW_ZONE));
+                .orElseThrow(() -> new NoSuchElementException("В запросе не найден валидный dateTo"));
         
-        return balanceRequest
-                .map(GetWalletBalanceRequest::getClientId)
-                .map(UUID::toString)
-                .map(clientId -> new VerifiedWalletBalance(clientId, dateFrom, dateTo))
-                .or(() -> {
-                    log.error("Запрос не содержит корректного clientId");
-                    return Optional.empty();
-                });
+        if (dateFrom.isAfter(dateTo)) {
+            throw new IllegalArgumentException("Начальная дата не может быть больше конечной даты");
+        }
+        
+        return new VerifiedWalletBalance(clientId, dateFrom, dateTo);
     }
 }
